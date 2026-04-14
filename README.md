@@ -1,37 +1,125 @@
-### Микросервис преобразования картинки в Gherkin
+# Микросервис анализа UI-скриншотов
+
+Flask-сервис принимает изображение интерфейса, отправляет его в Mistral и сохраняет job, input, result, artifacts и logs в PostgreSQL. Загруженные изображения сохраняются в локальное хранилище `storage/images/`.
+
 ## Запуск
-```
- python .\testUpload.py
- ```
 
-Или
-
-```
-docker build -t image_to_gherkin .
-docker run image_to_gherkin
+```bash
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+copy .env.example .env
+python .\testUpload.py
 ```
 
-## Пример запроса
-```
-curl -X POST "http://localhost:8001/generate-gherkin" \
--H "Content-Type: application/json" \
--d '{
-  "description": "Пользователь вводит логин и пароль на странице авторизации",
-  "base64_image": "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABkAGQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==",
-  "image_type": "image/jpg"
-}'
-```
-## Пример ответа
-```
+Сервис по умолчанию поднимается на `http://localhost:8001`.
+
+## Переменные окружения
+
+- `MISTRAL_API_KEY` или `MISTRAL_AI_API_KEY`
+- `PORT=8001`
+- `MAX_FILE_SIZE_MB=10`
+- `LOG_LEVEL=INFO`
+- `CORS_ALLOWED_ORIGINS=`
+- `POSTGRES_HOST=localhost`
+- `POSTGRES_PORT=8080`
+- `POSTGRES_DB=test_platform`
+- `POSTGRES_USER=postgres`
+- `POSTGRES_PASSWORD=postgres`
+- `STORAGE_ROOT=storage`
+
+Можно задать `DATABASE_URL`, тогда он будет использован вместо отдельных `POSTGRES_*`.
+
+## PostgreSQL
+
+Подключение по умолчанию:
+
+- host: `localhost`
+- port: `8080`
+- database: `test_platform`
+- username: `postgres`
+- password: `postgres`
+
+SQL-схема лежит в [schema.sql](/C:/Users/artem/OneDrive/Desktop/TestPhotoAnalysis/schema.sql). Приложение также создаёт таблицы автоматически через SQLAlchemy при старте.
+
+## API
+
+### `GET /health`
+
+```json
 {
-    "gherkin": "```gherkin\nFeature: Авторизация пользователя на странице входа
-      
-      Scenario: Пользователь вводит логин и пароль
-          Given пользователь находится на странице авторизации
-          When пользователь вводит логин \"exampleUser\"
-          And пользователь вводит пароль \"examplePassword\"
-          Then система должна проверить корректность введенных данных
-          And система должна предоставить доступ к личному кабинету при успешной авторизации
-          Or система должна показать сообщение об ошибке при неверных данных\n```"
+  "status": "UP",
+  "service": "photo-analysis"
+}
+```
+
+### `POST /upload-image`
+
+Принимает `multipart/form-data` с обязательным полем `image`. Старый контракт сохранён:
+
+```json
+{
+  "status": "success",
+  "gherkin": "Feature: ..."
+}
+```
+
+Что происходит внутри:
+
+- создаётся `Job` со статусом `pending`, затем `processing`
+- сохраняется `JobInput` с metadata файла
+- файл пишется в `storage/images/`
+- создаётся `Artifact` типа `uploaded_image`
+- в `JobLog` пишутся события `file uploaded`, `ai request started`, `ai request finished` или `ai request failed`
+- при успехе создаётся `JobResult`, job переводится в `done`
+- при ошибке job переводится в `failed`
+
+### `GET /jobs/<job_id>`
+
+Возвращает metadata job.
+
+### `GET /jobs/<job_id>/result`
+
+Возвращает Gherkin и `result_json`.
+
+### `GET /jobs/<job_id>/artifacts`
+
+Возвращает список артефактов job.
+
+### `GET /jobs`
+
+Поддерживает query-параметры:
+
+- `service_type`
+- `status`
+- `limit`
+- `offset`
+
+### `GET /get-test-cases`
+
+Для совместимости возвращает последний успешный Gherkin из PostgreSQL.
+
+### `GET /jobs/<job_id>/feature`
+
+Скачивает результат как `.feature`.
+
+## Валидация и ошибки
+
+Backend валидирует:
+
+- наличие поля `image`
+- имя файла
+- MIME вида `image/*`
+- пустой файл
+- лимит размера файла
+
+Ошибки возвращаются в формате:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FILE_TOO_LARGE",
+    "message": "Uploaded file exceeds the 10 MB limit"
+  }
 }
 ```

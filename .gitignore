@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 .idea/
 .DS_Store
+service.err.log
+service.out.log
