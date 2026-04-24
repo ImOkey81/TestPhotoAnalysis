@@ -19,7 +19,7 @@ python .\testUpload.py
 - `PORT=8001`
 - `MAX_FILE_SIZE_MB=10`
 - `LOG_LEVEL=INFO`
-- `CORS_ALLOWED_ORIGINS=`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
 - `POSTGRES_HOST=localhost`
 - `POSTGRES_PORT=8080`
 - `POSTGRES_DB=test_platform`

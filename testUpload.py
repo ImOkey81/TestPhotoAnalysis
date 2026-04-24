@@ -144,7 +144,10 @@ class JobLog(Base):
 def build_cors_origins() -> list[str]:
     raw_value = os.getenv("CORS_ALLOWED_ORIGINS", "")
     if not raw_value.strip():
-        return []
+        return [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
     return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
 

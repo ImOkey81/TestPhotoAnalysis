@@ -1,6 +1,7 @@
-﻿.env
+.env
 .env.local
 .env.*
+!.env.example
 .venv/
 __pycache__/
 *.pyc
@@ -8,3 +9,4 @@ __pycache__/
 .DS_Store
 service.err.log
 service.out.log
+storage/
