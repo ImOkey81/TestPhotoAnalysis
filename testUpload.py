@@ -19,6 +19,7 @@ from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, String, Text, cre
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, selectinload, sessionmaker
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
+from auth import require_auth
 
 load_dotenv()
 
@@ -630,6 +631,7 @@ def health():
 
 
 @app.route("/upload-image", methods=["POST"])
+@require_auth
 def upload_image():
     validated, validation_error = validate_image_upload()
     if validation_error:
@@ -712,6 +714,7 @@ def upload_image():
 
 
 @app.route("/jobs/<job_id>", methods=["GET"])
+@require_auth
 def get_job(job_id: str):
     job = repository.get_job(job_id)
     if not job:
@@ -720,6 +723,7 @@ def get_job(job_id: str):
 
 
 @app.route("/jobs/<job_id>/result", methods=["GET"])
+@require_auth
 def get_job_result(job_id: str):
     job = repository.get_job(job_id)
     if not job:
@@ -737,6 +741,7 @@ def get_job_result(job_id: str):
 
 
 @app.route("/jobs/<job_id>/artifacts", methods=["GET"])
+@require_auth
 def get_job_artifacts(job_id: str):
     job = repository.get_job(job_id)
     if not job:
@@ -746,6 +751,7 @@ def get_job_artifacts(job_id: str):
 
 
 @app.route("/jobs", methods=["GET"])
+@require_auth
 def list_jobs():
     limit, limit_error = parse_pagination_arg("limit", 20)
     if limit_error:
@@ -773,6 +779,7 @@ def list_jobs():
 
 
 @app.route("/get-test-cases", methods=["GET"])
+@require_auth
 def get_test_cases():
     latest_result = repository.get_latest_successful_result()
     if not latest_result:
@@ -781,6 +788,7 @@ def get_test_cases():
 
 
 @app.route("/jobs/<job_id>/feature", methods=["GET"])
+@require_auth
 def download_feature(job_id: str):
     job = repository.get_job(job_id)
     if not job:
